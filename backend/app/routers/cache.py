@@ -16,6 +16,32 @@ LIST_FIELDS = ["策略编号", "关联服务", "缓存键模板", "过期秒数"
 STATUSES = ["草稿", "待校验", "已启用", "已停用"]
 
 
+@router.get("/contract", response_model=dict)
+def contract() -> dict:
+    """缓存策略契约：查询入口和结果缓存页面读取同一份有效键与命中率。"""
+    from app.services.cache_contract import contract_status
+
+    return contract_status()
+
+
+@router.get("/contract/{entry_id}", response_model=dict)
+def contract_detail(entry_id: int) -> dict:
+    """单条缓存策略的契约视图：有效缓存键、命中率、失效事件与绑定关系。"""
+    entry = service.get_entry(entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"缓存策略 {entry_id} 不存在或已归档")
+    return service.contract_view(entry)
+
+
+@router.post("/{entry_id}/key", response_model=dict)
+def preview_key(entry_id: int, payload: EntryPayload) -> dict:
+    """按策略与查询参数计算完整缓存键，用于复核参数与转换版本是否绑定。"""
+    preview, message = service.preview_key(entry_id, payload.values)
+    if preview is None:
+        return {"ok": False, "message": message}
+    return {"ok": True, "message": message, "preview": preview}
+
+
 @router.get("", response_model=PageResult[dict])
 def list_entries(
     keyword: str | None = Query(default=None, description="按策略编号检索"),
@@ -28,6 +54,13 @@ def list_entries(
         raise HTTPException(status_code=400, detail="每页最多 200 条，请缩小分页范围")
     items, total = service.list_entries(keyword=keyword, status=status, page=page, size=size)
     return PageResult(items=items, total=total, page=page, size=size)
+
+
+@router.get("/export")
+def export_entries() -> dict[str, Any]:
+    """导出结果缓存清单：返回当前过滤条件下的全量数据。"""
+    items, total = service.list_entries(page=1, size=10000)
+    return {"module": "cache", "total": total, "items": items}
 
 
 @router.get("/{entry_id}", response_model=dict)
@@ -56,10 +89,3 @@ def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
     if entry is None:
         return ActionResult(ok=False, message=message)
     return ActionResult(ok=True, message=message, entry=entry)
-
-
-@router.get("/export")
-def export_entries() -> dict[str, Any]:
-    """导出结果缓存清单：返回当前过滤条件下的全量数据。"""
-    items, total = service.list_entries(page=1, size=10000)
-    return {"module": "cache", "total": total, "items": items}

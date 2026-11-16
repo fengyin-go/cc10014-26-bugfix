@@ -7,6 +7,8 @@ from app.store import store
 
 MODULE = "transform"
 REQUIRED_FIELDS = ["模板编号", "关联服务", "输入字段"]
+# 转换模板版本参与缓存键计算，启用模板前必须填写版本号。
+VERSION_FIELD = "版本"
 STATUS_ORDER = ["草稿", "待校验", "已启用", "已停用"]
 ACTION_RULES = {"提交校验": "待校验", "启用模板": "已启用", "停用模板": "已停用"}
 NEGATIVE_ACTIONS = ["停用模板"]
@@ -35,11 +37,15 @@ class TransformService:
 
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
         missing = [field for field in REQUIRED_FIELDS if not str(values.get(field) or "").strip()]
+        version = str(values.get(VERSION_FIELD) or "").strip()
+        if not version:
+            missing.append(VERSION_FIELD)
         if missing:
             return None, missing
         rows = store.rows(MODULE)
         entry = {"id": max((int(row.get("id", 0)) for row in rows), default=0) + 1}
         entry.update({field: values.get(field) for field in REQUIRED_FIELDS})
+        entry[VERSION_FIELD] = version
         entry["status"] = STATUS_ORDER[0]
         entry["pending"] = True
         entry["abnormal"] = False
@@ -55,6 +61,9 @@ class TransformService:
         target = ACTION_RULES[action]
         if target not in STATUS_ORDER:
             return None, f"目标状态「{target}」不在允许的状态序列里"
+        if action == "启用模板" and not str(entry.get(VERSION_FIELD) or "").strip():
+            entry["abnormal"] = True
+            return None, "转换模板不满足启用条件：版本缺失，缓存键无法绑定转换版本"
         entry["status"] = target
         entry["pending"] = target != STATUS_ORDER[-1]
         entry["abnormal"] = action in NEGATIVE_ACTIONS

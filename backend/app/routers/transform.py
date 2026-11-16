@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/transform", tags=["响应转换"])
 
 service = TransformService()
 
-LIST_FIELDS = ["模板编号", "关联服务", "输入字段", "输出字段", "格式转换", "默认填充", "数组展开", "嵌套打平"]
+LIST_FIELDS = ["模板编号", "关联服务", "版本", "输入字段", "输出字段", "格式转换", "默认填充", "数组展开", "嵌套打平"]
 STATUSES = ["草稿", "待校验", "已启用", "已停用"]
 
 

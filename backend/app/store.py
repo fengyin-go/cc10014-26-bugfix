@@ -11,12 +11,18 @@ from app.seed import SEED_ROWS
 
 class Store:
     def __init__(self) -> None:
+        self.reload()
+
+    def reload(self) -> None:
+        """重置成种子数据，供启动和复测脚本使用。"""
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        # 以下划线开头的表是缓存键、查询结果数据集、写入批次等运行期内部表，
+        # 不属于业务模块，运营概览里不统计。
+        return sorted(name for name in self._tables if not name.startswith("_"))
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])
@@ -26,6 +32,9 @@ class Store:
             if int(row.get("id", 0)) == entry_id:
                 return row
         return None
+
+    def next_id(self, module: str) -> int:
+        return max((int(row.get("id", 0)) for row in self.rows(module)), default=0) + 1
 
     def overview(self) -> dict[str, object]:
         modules: list[dict[str, object]] = []

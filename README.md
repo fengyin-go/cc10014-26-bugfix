@@ -56,7 +56,7 @@ npm run dev
 | 服务监控 | `monitor` | 监控指标 | 指标编号、关联服务、QPS阈值 |
 | 消费方登记 | `consumer` | 消费应用 | 应用编号、应用名称、订阅服务 |
 | 版本管理 | `version` | 版本记录 | 版本号、关联服务、变更描述 |
-| 结果缓存 | `cache` | 缓存策略 | 策略编号、关联服务、缓存键模板 |
+| 结果缓存 | `cache` | 缓存策略 | 策略编号、关联服务、缓存键模板、过期秒数、最大条目 |
 | 响应转换 | `transform` | 转换模板 | 模板编号、关联服务、输入字段 |
 | 网关路由 | `gateway` | 路由规则 | 规则编号、路径前缀、目标服务 |
 | 接口文档 | `schema` | 接口定义 | 定义编号、关联服务、请求方法 |
@@ -67,6 +67,18 @@ npm run dev
 | 模拟数据 | `mock` | 模拟规则 | 规则编号、关联服务、触发条件 |
 | 数据备份 | `backup` | 备份策略 | 策略编号、目标服务、备份周期 |
 | 事件通知 | `notify` | 通知规则 | 规则编号、触发事件、通知渠道 |
+
+## 缓存链路复测
+
+缓存键由缓存键模板、查询参数签名和转换模板版本共同组成，旧版本或旧参数的值不会被
+当前查询命中。主要读取面：
+
+- `GET /api/cache/contract`、`GET /api/query/contract`：当前有效缓存键、命中率、失效事件。
+- `POST /api/cache/{id}/key`：按参数预演完整缓存键。
+- `POST /api/query/{id}/execute`：`operation=read|write`，支持 `timeout`、`interrupt_after`、`resume`。
+- `GET /api/query/results?cache_key=...`：按完整缓存键复核查询结果数据集。
+
+回归测试：`cd backend && .venv/bin/python -m unittest tests.test_cache_flow -v`
 
 ## 约定
 
